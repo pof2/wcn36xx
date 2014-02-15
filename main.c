@@ -661,6 +661,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 				goto out;
 			}
 			sta_priv = (struct wcn36xx_sta *)sta->drv_priv;
+			sta_priv->aid = bss_conf->aid;
 
 			wcn36xx_update_allowed_rates(sta, WCN36XX_BAND(wcn));
 
@@ -670,7 +671,6 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			wcn36xx_smd_config_bss(wcn, vif, sta,
 					       bss_conf->bssid,
 					       true);
-			sta_priv->aid = bss_conf->aid;
 			/*
 			 * config_sta must be called from  because this is the
 			 * place where AID is available.
