@@ -135,18 +135,19 @@ static void wcn36xx_smd_set_sta_default_ht_params(
 static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 		struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta,
-		struct wcn36xx_hal_config_sta_params *sta_params)
+		struct wcn36xx_hal_config_sta_params *sta_params,
+		struct wcn36xx_hal_config_bss_params *bss_params)
 {
 	struct wcn36xx_vif *priv_vif = (struct wcn36xx_vif *)vif->drv_priv;
 	struct wcn36xx_sta *priv_sta = NULL;
 	if (vif->type == NL80211_IFTYPE_ADHOC ||
 	    vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_MESH_POINT) {
-		sta_params->type = 1;
-		sta_params->sta_index = 0xFF;
-	} else {
 		sta_params->type = 0;
-		sta_params->sta_index = 1;
+		sta_params->sta_index = WCN36XX_HAL_STA_INVALID_IDX;
+	} else {
+		sta_params->type = 1;
+		sta_params->sta_index = priv_vif->self_sta_index;
 	}
 
 	sta_params->listen_interval = WCN36XX_LISTEN_INTERVAL(wcn);
@@ -158,8 +159,11 @@ static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 	 */
 	if (NL80211_IFTYPE_STATION == vif->type)
 		memcpy(&sta_params->mac, vif->addr, ETH_ALEN);
-	else
+	else {
 		memcpy(&sta_params->bssid, vif->addr, ETH_ALEN);
+		if (bss_params)
+			memcpy(&sta_params->mac, vif->addr, ETH_ALEN);
+	}
 
 	sta_params->encrypt_type = priv_vif->encrypt_type;
 	sta_params->short_preamble_supported =
@@ -190,6 +194,14 @@ static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 	} else {
 		wcn36xx_set_default_rates(&sta_params->supported_rates);
 		wcn36xx_smd_set_sta_default_ht_params(sta_params);
+	}
+
+	/* When inside of a config_bss some field has other meanings */
+	if (bss_params) {
+		sta_params->action = bss_params->action;
+		sta_params->sta_index = WCN36XX_HAL_STA_INVALID_IDX;
+		if (NL80211_IFTYPE_STATION == vif->type)
+			memset(&sta_params->mac, 0, ETH_ALEN);
 	}
 }
 
@@ -946,7 +958,7 @@ int wcn36xx_smd_config_sta(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 
 	sta_params = &msg.sta_params;
 
-	wcn36xx_smd_set_sta_params(wcn, vif, sta, sta_params);
+	wcn36xx_smd_set_sta_params(wcn, vif, sta, sta_params, NULL);
 
 	if (!wcn36xx_is_fw_version(wcn, 1, 2, 2, 24)) {
 		ret = wcn36xx_smd_config_sta_v1(wcn, &msg);
@@ -1197,7 +1209,6 @@ int wcn36xx_smd_config_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 		bss->ext_channel = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 
 	bss->reserved = 0;
-	wcn36xx_smd_set_sta_params(wcn, vif, sta, sta_params);
 
 	/* wcn->ssid is only valid in AP and IBSS mode */
 	bss->ssid.length = vif_priv->ssid.length;
@@ -1222,6 +1233,7 @@ int wcn36xx_smd_config_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 
 	bss->action = update;
 
+	wcn36xx_smd_set_sta_params(wcn, vif, sta, sta_params, bss);
 	wcn36xx_dbg(WCN36XX_DBG_HAL,
 		    "hal config bss bssid %pM self_mac_addr %pM bss_type %d oper_mode %d nw_type %d\n",
 		    bss->bssid, bss->self_mac_addr, bss->bss_type,
