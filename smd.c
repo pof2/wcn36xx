@@ -2031,7 +2031,18 @@ int wcn36xx_smd_feature_caps_exchange(struct wcn36xx *wcn)
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_FEATURE_CAPS_EXCHANGE_REQ);
 
-	set_feat_caps(msg_body.feat_caps, STA_POWERSAVE);
+//	set_feat_caps(msg_body.feat_caps, STA_POWERSAVE);
+
+	set_feat_caps(msg_body.feat_caps, 0);
+	set_feat_caps(msg_body.feat_caps, 1);
+	set_feat_caps(msg_body.feat_caps, 2);
+	set_feat_caps(msg_body.feat_caps, 3);
+	set_feat_caps(msg_body.feat_caps, 4);
+	set_feat_caps(msg_body.feat_caps, 5);
+	set_feat_caps(msg_body.feat_caps, 6);
+	set_feat_caps(msg_body.feat_caps, 7);
+	set_feat_caps(msg_body.feat_caps, 8);
+
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
