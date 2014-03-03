@@ -43,6 +43,18 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 			 "BD   <<< ", (char *)bd,
 			 sizeof(struct wcn36xx_rx_bd));
 
+	{
+		char buf[0x22+sizeof(struct wcn36xx_rx_bd)];
+		/* This is an 802.11 header with ethertype 3661 */
+		const char hdr[] ={0x88,0x01,0x00,0x00,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+				   0xff,0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x00,0x00,0xaa,0xaa,0x03,0x00,0x00,0x00,0x36,0x61};
+		memcpy(buf, hdr, 0x22);
+		memcpy(buf + 0x22, bd, sizeof(struct wcn36xx_rx_bd));
+		print_hex_dump(KERN_DEBUG, "wcnxxd: RXBD <<<  ",
+			       DUMP_PREFIX_OFFSET, 32, 1,
+			       buf, sizeof(buf), false);
+	}
+
 	skb_put(skb, bd->pdu.mpdu_header_off + bd->pdu.mpdu_len);
 	skb_pull(skb, bd->pdu.mpdu_header_off);
 
@@ -66,6 +78,20 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = __le16_to_cpu(hdr->frame_control);
 	sn = IEEE80211_SEQ_TO_SN(__le16_to_cpu(hdr->seq_ctrl));
+
+
+	{
+	u8 *buf = skb->data;
+	bool enc = buf[1] & 0x40;
+
+	/* remove protected bit when dumping since the frame is not really encrypted yet */
+	if (enc)
+		buf[1] ^= 0x40;
+	print_hex_dump(KERN_DEBUG, "wcnxxd RXDT <<< ", DUMP_PREFIX_OFFSET, 32, 1,
+		       buf, skb->len, false);
+	if (enc)
+		buf[1] ^= 0x40;
+	}
 
 	if (ieee80211_is_beacon(hdr->frame_control)) {
 		wcn36xx_dbg(WCN36XX_DBG_BEACON, "beacon skb %p len %d fc %04x sn %d\n",

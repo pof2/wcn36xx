@@ -628,6 +628,19 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 
 	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP, "DESC1 >>> ",
 			 (char *)desc, sizeof(*desc));
+
+	{
+		char buf[0x22+sizeof(struct wcn36xx_tx_bd)];
+		/* This is an 802.11 header with ethertype 3662 */
+		const char hdr[] ={0x88,0x01,0x00,0x00,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+				   0xff,0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x00,0x00,0xaa,0xaa,0x03,0x00,0x00,0x00,0x36,0x62};
+		memcpy(buf, hdr, 0x22);
+		memcpy(buf + 0x22, (char *)ctl->bd_cpu_addr, sizeof(struct wcn36xx_tx_bd));
+		print_hex_dump(KERN_DEBUG, "wcnxxd: TXBD >>>  ",
+			       DUMP_PREFIX_OFFSET, 32, 1,
+			       buf, sizeof(buf), false);
+	}
+
 	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP,
 			 "BD   >>> ", (char *)ctl->bd_cpu_addr,
 			 sizeof(struct wcn36xx_tx_bd));
@@ -657,6 +670,20 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP, "SKB   >>> ",
 			 (char *)ctl->skb->data, ctl->skb->len);
 
+
+	{
+	u8 *buf = ctl->skb->data;
+	bool enc = buf[1] & 0x40;
+
+	/* remove protected bit when dumping since the frame is not really encrypted yet */
+	if (enc)
+		buf[1] ^= 0x40;
+	print_hex_dump(KERN_DEBUG, "wcnxxd TXDT >>> ", DUMP_PREFIX_OFFSET, 32, 1,
+			 buf, ctl->skb->len, false);
+	if (enc)
+		buf[1] ^= 0x40;
+	}
+	
 	/* Move the head of the ring to the next empty descriptor */
 	 ch->head_blk_ctl = ctl->next;
 
